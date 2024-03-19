@@ -1,0 +1,51 @@
+.input-group-text{
+display: flex;
+justify-content: center;
+align-items: center;
+}
+.custom-container {
+background-color: #fff;
+border-radius: 8px;
+box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+padding: 20px;
+width: 400px;
+text-align: center;
+margin: auto;
+margin-top: 50px;
+}
+.custom-heading {
+margin-top: 0;
+color: gray;
+}
+.custom-input-file {
+margin: 20px 0;
+padding: 10px;
+border: 1px solid #ccc;
+border-radius: 4px;
+background-color: #f9f9f9;
+width: 100%;
+}
+.custom-submit-btn {
+padding: 10px 20px;
+background-color: #007bff;
+color: #fff;
+border: none;
+border-radius: 4px;
+cursor: pointer;
+transition: background-color 0.3s ease;
+}
+.custom-submit-btn:hover {
+background-color: #0056b3;
+}
+.custom-footer {
+background-color: #212529;
+padding: 10px 0;
+position: fixed;
+left: 20px;
+bottom: 20px;
+width: calc(100% - 40px);
+color: white;
+text-align: center;
+display: flex;
+justify-content: center;
+}
