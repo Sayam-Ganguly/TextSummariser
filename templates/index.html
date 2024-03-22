@@ -35,8 +35,19 @@
     </nav>
 
     <div class="custom-container">
-      <h2 class="custom-heading">Upload an Audio File</h2>
-      <form action="/" method="POST" enctype="multipart/form-data">
+      <h2 class="custom-heading">Upload MP3 File</h2>
+
+      {% with messages = get_flashed_messages(with_categories=true) %} {% if
+      messages %} {% for category, message in messages %}
+      <div class="alert alert-danger" role="alert">{{ message }}</div>
+      {% endfor %} {% endif %} {% endwith %}
+
+      <form
+        action="/"
+        method="POST"
+        enctype="multipart/form-data"
+        id="uploadForm"
+      >
         <div class="input-group">
           <input
             type="file"
@@ -46,7 +57,12 @@
           />
           <label class="input-group-text" for="file">Choose file</label>
         </div>
-        <input type="submit" value="Upload" class="custom-submit-btn"/>
+        <input
+          type="submit"
+          value="Upload"
+          class="custom-submit-btn"
+          onclick="uploadFile()"
+        />
       </form>
     </div>
 
