@@ -5,6 +5,7 @@ from pydub import AudioSegment
 from spacy.lang.en.stop_words import STOP_WORDS
 from string import punctuation
 from flask import send_file
+from threading import Timer
 import whisper, os, spacy, shutil, tempfile, zipfile
 
 stopwords = list(STOP_WORDS)
@@ -53,10 +54,6 @@ def convert_audio(input_file, output_file):
 @app.route('/', methods=['GET', 'POST'])
 def file_upload(): 
     if request.method == 'POST':
-    # check if the post request has the file part
-        if 'file' not in request.files:
-            return redirect(request.url)
-        
         file = request.files['file']
         print(file.filename)
         
@@ -69,71 +66,77 @@ def file_upload():
         print(allowed_file(file.filename))
         
         if file and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            file.save(file_path)
-            print("File saved to:", file_path)
-            
+            if(file.filename):
+                filename = secure_filename(file.filename)
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(file_path)
+                print("File saved to:", file_path)
+                
             # Convert audio file to recommended format for Whisper ASR
-            wav_filename = os.path.splitext(filename)[0] + ".wav"
-            wav_file_path = os.path.join(app.config['TRANSFORMED_FOLDER'], wav_filename)
-            convert_audio(file_path, wav_file_path)
-            print("Audio file converted to recommended format:", wav_file_path)
+            if(file_path):
+                wav_filename = os.path.splitext(filename)[0] + ".wav"
+                wav_file_path = os.path.join(app.config['TRANSFORMED_FOLDER'], wav_filename)
+                convert_audio(file_path, wav_file_path)
+                print("Audio file converted to recommended format:", wav_file_path)
+                
+            #Continue with transcription
+            if(wav_file_path):
+                model = whisper.load_model("base")
+                print("Model loaded")
 
-            model = whisper.load_model("base")
-            print("Model loaded")
+                transcription_text = model.transcribe(wav_file_path)
+                print("Transcription Completed")
+                transcription_result = transcription_text["text"]
 
-            transcription_text = model.transcribe(wav_file_path)
-            print("Transcription Completed")
-            transcription_result = transcription_text["text"]
-
-            # Delete the uploaded MP3 file and the converted WAV file
-            os.remove(file_path)
-            os.remove(wav_file_path)
-            
+                # Delete the uploaded MP3 file and the converted WAV file
+                os.remove(file_path)
+                os.remove(wav_file_path)
+                
             #summarising the text using spaCy
+            if(transcription_result):
+                nlp = spacy.load('en_core_web_trf')
+                doc = nlp(transcription_result)
 
-            nlp = spacy.load('en_core_web_trf')
-            doc = nlp(transcription_result)
+                word_frequencies = {}
+                for word in doc:
+                    if word.text.lower() not in stopwords:
+                        if word.text.lower() not in punctuation:
+                            if word.text not in word_frequencies.keys():
+                                word_frequencies[word.text] = 1
+                            else:
+                                word_frequencies[word.text] += 1
 
-            word_frequencies = {}
-            for word in doc:
-                if word.text.lower() not in stopwords:
-                    if word.text.lower() not in punctuation:
-                        if word.text not in word_frequencies.keys():
-                            word_frequencies[word.text] = 1
-                        else:
-                            word_frequencies[word.text] += 1
+                max_frequency = max(word_frequencies.values())
 
-            max_frequency = max(word_frequencies.values())
+                for word in word_frequencies.keys():
+                    word_frequencies[word] = word_frequencies[word]/max_frequency
 
-            for word in word_frequencies.keys():
-                word_frequencies[word] = word_frequencies[word]/max_frequency
+                sentence_tokens = [sent for sent in doc.sents]
 
-            sentence_tokens = [sent for sent in doc.sents]
+                sentence_scores = {}
+                for sent in sentence_tokens:
+                    for word in sent:
+                        if word.text.lower() in word_frequencies.keys():
+                            if sent not in sentence_scores.keys():
+                                sentence_scores[sent] = word_frequencies[word.text.lower()]
+                            else:
+                                sentence_scores[sent] += word_frequencies[word.text.lower()]
 
-            sentence_scores = {}
-            for sent in sentence_tokens:
-                for word in sent:
-                    if word.text.lower() in word_frequencies.keys():
-                        if sent not in sentence_scores.keys():
-                            sentence_scores[sent] = word_frequencies[word.text.lower()]
-                        else:
-                            sentence_scores[sent] += word_frequencies[word.text.lower()]
+                from heapq import nlargest
+                select_length = int(len(sentence_tokens)*0.3)
+                select_length
+                summary = nlargest(select_length, sentence_scores, key = sentence_scores.get)
+                summary
+                final_summary = [word.text for word in summary]
+                summary = ' '.join(final_summary)
 
-            from heapq import nlargest
-            select_length = int(len(sentence_tokens)*0.3)
-            select_length
-            summary = nlargest(select_length, sentence_scores, key = sentence_scores.get)
-            summary
-            final_summary = [word.text for word in summary]
-            summary = ' '.join(final_summary)
+                transcription = Transcription(text=transcription_result, sumText = summary)
+                db.session.add(transcription)
+                db.session.commit()
 
-            transcription = Transcription(text=transcription_result, sumText = summary)
-            db.session.add(transcription)
-            db.session.commit()
-
-            sno = transcription.sno
+                sno = transcription.sno
+            
+            #redirect to zip the transcription and summary
             return redirect(url_for('download_files', sno=sno)) 
         
         else:
@@ -174,9 +177,17 @@ def download_files(sno):
 
     # Clean up the temporary directory
     shutil.rmtree(temp_dir)
+
+    # Schedule file removal after a delay
+    delay = 10  # Delay in seconds
+    Timer(delay, remove_file, args=[zip_filepath]).start()
     
     # Serve the zip file for download
     return send_file(zip_filepath, as_attachment=True)
-    
+
+def remove_file(filepath):
+    # Remove the zip file from the server side
+    os.remove(filepath)
+
 if __name__ == '__main__':
     app.run(debug=True)
