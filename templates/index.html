@@ -45,27 +45,12 @@
         {% endif %} 
       {% endwith %}
 
-      <form
-        action="/"
-        method="POST"
-        enctype="multipart/form-data"
-        id="uploadForm"
-      >
+      <form action="/" method="POST" enctype="multipart/form-data" id="uploadForm" >
         <div class="input-group">
-          <input
-            type="file"
-            name="file"
-            class="custom-input-file"
-            onchange="displayFileName(this)"
-          />
+          <input type="file" name="file" class="custom-input-file" onchange="displayFileName(this)"/>
           <label class="input-group-text" for="file">Choose file</label>
         </div>
-        <input
-          type="submit"
-          value="Upload"
-          class="custom-submit-btn"
-          onclick="uploadFile()"
-        />
+        <input type="submit" value="Upload" class="custom-submit-btn" onclick="uploadFile()" />
       </form>
     </div>
 
