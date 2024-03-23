@@ -60,7 +60,7 @@ def file_upload():
         # if user does not select file, browser also
         # submit an empty part without filename
         if file.filename == '':
-            flash("No selected file. Please select an MP3 file.", "error")
+            flash("No selected file. Please select an MP3 file.", "danger")
             return redirect(request.url)
         
         print(allowed_file(file.filename))
@@ -140,7 +140,7 @@ def file_upload():
             return redirect(url_for('download_files', sno=sno)) 
         
         else:
-            flash("Only MP3 files are allowed.", "error")
+            flash("Only MP3 files are allowed.", "danger")
         
     return render_template('index.html')
 
