@@ -1,15 +1,20 @@
-from flask import Flask, render_template, redirect, request, url_for, flash
+from threading import Timer
+
+from pydub import AudioSegment
+from string import punctuation
+from spacy.lang.en.stop_words import STOP_WORDS
+import whisper, os, spacy, shutil, tempfile, zipfile
+
+from flask import send_file
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
-from pydub import AudioSegment
-from spacy.lang.en.stop_words import STOP_WORDS
-from string import punctuation
-from flask import send_file
-from threading import Timer
-import whisper, os, spacy, shutil, tempfile, zipfile
+from flask import Flask, render_template, redirect, request, url_for, flash, jsonify
+
 
 stopwords = list(STOP_WORDS)
 punctuation = punctuation + '\n'
+
+currState = None
 
 app = Flask(__name__)
 app.secret_key = 'textsummary'
@@ -27,11 +32,15 @@ class Transcription(db.Model):
         return f"{self.sno} - {self.text}"
 
 
-UPLOAD_FOLDER = r'D:\Flask\TextSummariser2\AudioFolder'
-TRANSFORMED_FOLDER = r'D:\Flask\TextSummariser2\TransformedAudioFolder'
+UPLOAD_FOLDER = r'.\AudioFolder'
+TRANSFORMED_FOLDER = r'.\TransformedAudioFolder'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['TRANSFORMED_FOLDER'] = TRANSFORMED_FOLDER
+
+def setState(state):
+    global currState
+    currState = state
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -45,11 +54,16 @@ def convert_audio(input_file, output_file):
         input_file (str): Path to the input audio file.
         output_file (str): Path to save the converted audio file.
     """
+
     audio = AudioSegment.from_mp3(input_file)
     audio = audio.set_frame_rate(16000)  # Set sampling rate to 16 kHz
     audio = audio.set_channels(1)  # Set number of channels to 1 (mono)
     audio = audio.set_sample_width(2)  # Set sample width to 16-bit (2 bytes)
     audio.export(output_file, format="wav")
+
+@app.route('/checkState', methods=['GET'])
+def checkState():
+    return jsonify(serverState=currState)
 
 @app.route('/', methods=['GET', 'POST'])
 def file_upload(): 
@@ -66,6 +80,8 @@ def file_upload():
         print(allowed_file(file.filename))
         
         if file and allowed_file(file.filename):
+            setState("uploading")
+            
             if(file.filename):
                 filename = secure_filename(file.filename)
                 file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
@@ -73,6 +89,8 @@ def file_upload():
                 print("File saved to:", file_path)
                 
             # Convert audio file to recommended format for Whisper ASR
+            setState("converting")
+
             if(file_path):
                 wav_filename = os.path.splitext(filename)[0] + ".wav"
                 wav_file_path = os.path.join(app.config['TRANSFORMED_FOLDER'], wav_filename)
@@ -80,6 +98,8 @@ def file_upload():
                 print("Audio file converted to recommended format:", wav_file_path)
                 
             #Continue with transcription
+            setState("transcribing")
+
             if(wav_file_path):
                 model = whisper.load_model("base")
                 print("Model loaded")
@@ -93,6 +113,8 @@ def file_upload():
                 os.remove(wav_file_path)
                 
             #summarising the text using spaCy
+            setState("summarising")
+
             if(transcription_result):
                 nlp = spacy.load('en_core_web_trf')
                 doc = nlp(transcription_result)
@@ -137,6 +159,7 @@ def file_upload():
                 sno = transcription.sno
             
             #redirect to zip the transcription and summary
+            setState(None)
             return redirect(url_for('download_files', sno=sno)) 
         
         else:

@@ -36,6 +36,7 @@
 
     <div class="custom-container">
       <h2 class="custom-heading">Upload MP3 File</h2>
+      <p>{{ serverState }}</p>
 
       {% with messages = get_flashed_messages(with_categories=true) %} 
         {% if messages %} 
@@ -50,7 +51,7 @@
           <input type="file" name="file" class="custom-input-file" onchange="displayFileName(this)"/>
           <label class="input-group-text" for="file">Choose file</label>
         </div>
-        <input type="submit" value="Upload" class="custom-submit-btn" onclick="uploadFile()" />
+        <input type="submit" value="Upload" class="custom-submit-btn" onclick="uploadFile()"/>
       </form>
     </div>
 
@@ -59,6 +60,30 @@
     </div>
 
     <script>
+      function uploadFile() {
+        let state = null;
+        let currState = '{{ serverState }}';
+
+        console.log(currState);
+
+        setInterval(async () =>  {
+          const response = await fetch("/checkState");
+          const currState = await response.json();
+          if (currState.serverState != state) {
+            state = currState.serverState;
+            console.log(state);
+            let bodyElem = document.getElementsByTagName("body")[0];
+
+            if (state !== null) {
+              bodyElem.innerHTML = '<h1>' + state + '</h1>';
+            } else {
+              console.log("state is null")
+              window.location.assign('/');
+            }
+          }
+        }, 2000);
+      }
+
       function displayFileName(input) {
         const label = input.nextElementSibling;
         const fileName = input.files[0].name;
