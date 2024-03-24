@@ -27,8 +27,8 @@ class Transcription(db.Model):
         return f"{self.sno} - {self.text}"
 
 
-UPLOAD_FOLDER = r'D:\Flask\TextSummariser2\AudioFolder'
-TRANSFORMED_FOLDER = r'D:\Flask\TextSummariser2\TransformedAudioFolder'
+UPLOAD_FOLDER = r'.\AudioFolder'
+TRANSFORMED_FOLDER = r'.\TransformedAudioFolder'
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['TRANSFORMED_FOLDER'] = TRANSFORMED_FOLDER
